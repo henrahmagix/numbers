@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<title>Numbers</title>
+</head>
+<body ng-app="app" ng-controller="numbers as ctrl">
+	<table>
+		<tbody>
+			<tr ng-repeat="colour in ctrl.colours" ng-style="{color: ctrl[colour] > 12 ? 'red' : 'black'}">
+				<td>{{colour}}</td>
+				<td ng-bind="ctrl[colour]"></td>
+				<td><input type="number" min=1 max=12 ng-model="ctrl.nums[colour]" ng-disabled="ctrl.disabledColours.includes(colour) || ctrl.done"></td>
+			</tr>
+		</tbody>
+	</table>
+	<div ng-style="{color: val < 2 ? 'black' : 'red'}" ng-repeat="(key, val) in ctrl.counts track by key" ng-if="key < 12">{{key+1}}: {{val}}</div>
+	<button ng-click="ctrl.start()">Start random</button>
+	<button ng-click="ctrl.stop()">Stop random</button>
+	<h2 ng-if="ctrl.done">DONE!</h2>
+
+	<script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/angular.js/1.7.2/angular.min.js"></script>
+	<script type="text/javascript">
+		angular.module('app', [])
+			.controller('numbers', function ($scope, $interval) {
+				var ctrl = this;
+
+				var colours = ctrl.colours = [
+					'black','blue','brown',
+					'green','grey','orange',
+					'pink','purple','red',
+					'turquoise','white','yellow'
+				];
+				var disabledColours = ctrl.disabledColours = [
+					'brown','green','grey',
+					'orange','pink','purple','turquoise'
+				];
+				function resetColours() {
+					colours.forEach(c => ctrl[c] = 0);
+				}
+				resetColours();
+
+				var initialCounts = Array(12);
+				for (var i = 0; i < 12; i++) {
+					initialCounts[i] = 0;
+				}
+				function counts() {
+					ctrl.counts = angular.copy(initialCounts);
+					colours.forEach(c => incrementCountFor(c));
+					checkCounts();
+				}
+				function countFor(colour) {
+					return ctrl.counts[ctrl[colour]-1];
+				}
+				function incrementCountFor(colour) {
+					ctrl.counts[ctrl[colour]-1] += 1;
+				}
+				counts();
+
+				ctrl.done = false;
+				function checkCounts() {
+					if (colours.every(c => countFor(c) === 1)) {
+						ctrl.done = true;
+					}
+				}
+
+				$scope.nums = {};
+
+				function brown() {
+					if (!ctrl.red || !ctrl.blue || !ctrl.yellow) {
+						ctrl.brown = 0;
+					} else {
+						ctrl.brown = ctrl.red + ctrl.blue + ctrl.yellow;
+					}
+				}
+				function purple() {
+					if (!ctrl.red || !ctrl.blue) {
+						ctrl.purple = 0;
+					} else {
+						ctrl.purple = ctrl.red + ctrl.blue;
+					}
+				}
+				function green() {
+					if (!ctrl.blue || !ctrl.yellow) {
+						ctrl.green = 0;
+					} else {
+						ctrl.green = ctrl.blue + ctrl.yellow;
+					}
+					turquoise();
+				}
+				function orange() {
+					if (!ctrl.red || !ctrl.yellow) {
+						ctrl.orange = 0;
+					} else {
+						ctrl.orange = ctrl.red + ctrl.yellow;
+					}
+				}
+				function pink() {
+					if (!ctrl.red || !ctrl.white) {
+						ctrl.pink = 0;
+					} else {
+						ctrl.pink = ctrl.red + ctrl.white;
+					}
+				}
+				function grey() {
+					if (!ctrl.black || !ctrl.white) {
+						ctrl.grey = 0;
+					} else {
+						ctrl.grey = ctrl.black + ctrl.white;
+					}
+				}
+				function turquoise() {
+					if (!ctrl.blue || !ctrl.green) {
+						ctrl.turquoise = 0;
+					} else {
+						ctrl.turquoise = ctrl.blue + ctrl.green;
+					}
+				}
+				function setRed(val) {
+					if (!val) {
+						ctrl.red = 0;
+					} else {
+						ctrl.red = val;
+					}
+					brown();
+					orange();
+					pink();
+					purple();
+				}
+				function setBlue(val) {
+					if (!val) {
+						ctrl.blue = 0;
+					} else {
+						ctrl.blue = val;
+					}
+					brown();
+					green();
+					purple();
+				}
+				function setYellow(val) {
+					if (!val) {
+						ctrl.yellow = 0;
+					} else {
+						ctrl.yellow = val;
+					}
+					brown();
+					green();
+					orange();
+				}
+				function setWhite(val) {
+					if (!val) {
+						ctrl.white = 0;
+					} else {
+						ctrl.white = val;
+					}
+					pink();
+					grey();
+				}
+				function setBlack(val) {
+					if (!val) {
+						ctrl.black = 0;
+					} else {
+						ctrl.black = val;
+					}
+					grey();
+				}
+				$scope.$watch('ctrl.nums.red', (val) => {
+					setRed(val);
+					counts();
+				});
+				$scope.$watch('ctrl.nums.blue', (val) => {
+					setBlue(val);
+					counts();
+				});
+				$scope.$watch('ctrl.nums.yellow', (val) => {
+					setYellow(val);
+					counts();
+				});
+				$scope.$watch('ctrl.nums.white', (val) => {
+					setWhite(val);
+					counts();
+				});
+				$scope.$watch('ctrl.nums.black', (val) => {
+					setBlack(val);
+					counts();
+				});
+
+				ctrl.nums = {};
+				let broken = false;
+				function rand(min, max) {
+					return Math.floor(Math.random()*(max-min+1)+min);
+				}
+				function randomIntFromInterval(min, max, notIn = []) {
+					var n;
+					var range = [];
+					for (var i = min; i <= max; i++) {
+						range.push(i);
+					}
+					if (range.every(n => notIn.includes(n))) {
+						// console.trace(`Broken! min=${min} max=${max} notIn=${notIn}`);
+						broken = true;
+						return 0;
+					}
+					do {
+						n = rand(min, max);
+					} while (notIn.includes(n))
+					return n;
+				}
+				// Orange numbers:             red yellow
+				// Red cannot be double blue, else turquoise == orange.
+				// Possible turquoise numbers: blue blue yellow
+				// -- Possible brown numbers: red blue yellow
+				// - 2 2 <=8
+				// -- 1 2 <=8
+				// -- 3 2 <=8 XX
+				// - 3 3 <=6
+				// -- 1 3 6
+				// -- 2 3 6
+				// -- 4 3 6 XX
+				// - 5 5 <=2
+				// -- 1 5 <=2
+				// -- 2 5 1
+				// -- 3 5 <=2
+				// -- 4 5 <=2
+				// -- 6 5 <=2 XX
+				let combinations = [];
+				let timer;
+				ctrl.start = function () {
+					ctrl.done = false;
+					timer = $interval(() => {
+						// if (broken) return $interval.cancel(timer);
+						resetColours();
+						setBlue(randomIntFromInterval(2, 5, [4]));
+						if (ctrl.blue === 2) {
+							setRed(1);
+							setYellow(randomIntFromInterval(1, 8, unused()));
+						} else if (ctrl.blue === 3) {
+							setRed(randomIntFromInterval(1, 2, unused()));
+							setYellow(randomIntFromInterval(1, 6, unused()));
+						} else if (ctrl.blue === 5) {
+							setRed(randomIntFromInterval(1, 4, unused()));
+							if (ctrl.red === 2) {
+								setYellow(1);
+							} else {
+								setYellow(randomIntFromInterval(1, 2, unused()));
+							}
+						}
+						if (rand(0, 1)) {
+							setWhite(randomIntFromInterval(1, 12, unused()));
+							setBlack(randomIntFromInterval(1, 12 - ctrl.white, unused()));
+						} else {
+							setBlack(randomIntFromInterval(1, 12, unused()));
+							setWhite(randomIntFromInterval(1, 12 - ctrl.black, unused()));
+						}
+						let combo = [ctrl.blue, ctrl.red, ctrl.yellow, ctrl.white, ctrl.black];
+						if (!combinations.map(arr => arr.join('')).includes(combo.join(''))) {
+							console.log(combinations.length, 'combos: blue, red, yellow, white, black', combo);
+							combinations.push(combo);
+						}
+						counts();
+						if (ctrl.done) return $interval.cancel(timer);
+					}, 10);
+				};
+				ctrl.stop = function () {
+					$interval.cancel(timer);
+				};
+				function unused() {
+					return colours.map(c => ctrl[c]).filter(n => n > 0 && n <= 12);
+				}
+			});
+	</script>
+</body>
+</html>
